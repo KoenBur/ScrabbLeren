@@ -8,8 +8,6 @@ Een Nederlandstalige, volledig statische PWA om Scrabblewoorden te oefenen. Er i
 - Oefeningen omvatten 2- en 3-letterwoorden, voor- en achterhaken, 7-/8-tegelalfagrammen en de dure letters Q, X, Y, Z, C en IJ.
 - Alfagrammen worden gerangschikt naar combinatorische waarschijnlijkheid met de Nederlandse tegelverdeling; de instelling beperkt de oefening tot de waarschijnlijkste N rekken.
 - Antwoorden werken met `Enter`; `spatie` gaat naar de volgende oefening wanneer geen invoerveld actief is.
-- Kaarten en dagstatistieken worden lokaal bijgehouden met spaced repetition. Exporteer of importeer ze als JSON via **Voortgang meenemen**. Een eigen woordenlijst is bewust geen onderdeel van de voortgangsbackup.
-- De service worker cachet de site en woordenlijst voor offline gebruik. Laad de website eerst eenmaal online en gebruik de gepubliceerde HTTPS-site of een lokale HTTP-server (niet `file://`).
 
 ## Bron en licentie
 

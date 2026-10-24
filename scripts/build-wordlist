@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""Build a Dutch Scrabble wordlist from OpenTaal and Hunspell wordforms."""
+
+from __future__ import annotations
+
+import json
+import re
+import urllib.request
+from collections import defaultdict
+from pathlib import Path
+from typing import Iterable
+
+from spylls.hunspell import Dictionary
+
+
+ROOT = Path(__file__).resolve().parents[1]
+WORDLIST_URL = "https://raw.githubusercontent.com/OpenTaal/opentaal-wordlist/master/wordlist.txt"
+WORDLIST_LICENSE_URL = "https://raw.githubusercontent.com/OpenTaal/opentaal-wordlist/master/LICENSE.txt"
+HUNSPELL_BASE_URL = "https://raw.githubusercontent.com/OpenTaal/opentaal-hunspell/master"
+HUNSPELL_URLS = {
+    "nl.dic": f"{HUNSPELL_BASE_URL}/nl.dic",
+    "nl.aff": f"{HUNSPELL_BASE_URL}/nl.aff",
+}
+HUNSPELL_LICENSE_URL = f"{HUNSPELL_BASE_URL}/LICENSE.txt"
+SOURCE_URL = "https://github.com/OpenTaal/opentaal-wordlist"
+HUNSPELL_SOURCE_URL = "https://github.com/OpenTaal/opentaal-hunspell"
+ASCII_WORD = re.compile(r"^[A-Za-zĳĲ]+$")
+REQUIRED_WORDS = {"wijnhandel"}
+
+
+def download(url: str) -> str:
+    request = urllib.request.Request(url, headers={"User-Agent": "ScrabbLeren wordlist builder"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return response.read().decode("utf-8")
+
+
+def apply_affix(word: str, affix) -> str | None:
+    if not affix.cond_regexp.search(word):
+        return None
+    return affix.replace_regexp.sub(affix.add, word)
+
+
+def generate_wordforms(dictionary: Dictionary) -> set[str]:
+    """Expand Hunspell prefix/suffix rules, including cross-products and nested suffixes."""
+    aff = dictionary.aff
+    forms: set[str] = set()
+
+    for entry in dictionary.dic.words:
+        stem = entry.stem
+        flags = entry.flags
+        forms.add(stem)
+
+        suffixes = [
+            rule
+            for flag in flags
+            for rule in aff.SFX.get(flag, ())
+            if apply_affix(stem, rule) is not None
+        ]
+        prefixes = [
+            rule
+            for flag in flags
+            for rule in aff.PFX.get(flag, ())
+            if apply_affix(stem, rule) is not None
+        ]
+
+        for suffix in suffixes:
+            suffixed = apply_affix(stem, suffix)
+            if suffixed is None:
+                continue
+            forms.add(suffixed)
+
+            for outer in (rule for rules in aff.SFX.values() for rule in rules):
+                if outer.flag not in suffix.flags:
+                    continue
+                doubly_suffixed = apply_affix(suffixed, outer)
+                if doubly_suffixed is not None:
+                    forms.add(doubly_suffixed)
+
+        for prefix in prefixes:
+            prefixed = apply_affix(stem, prefix)
+            if prefixed is None:
+                continue
+            forms.add(prefixed)
+
+            if aff.COMPLEXPREFIXES:
+                for outer in (rule for rules in aff.PFX.values() for rule in rules):
+                    if outer.flag not in prefix.flags:
+                        continue
+                    doubly_prefixed = apply_affix(prefixed, outer)
+                    if doubly_prefixed is not None:
+                        forms.add(doubly_prefixed)
+
+            if not prefix.crossproduct:
+                continue
+            available_flags = flags | prefix.flags
+            for suffix in (rule for rules in aff.SFX.values() for rule in rules):
+                if suffix.flag not in available_flags or not suffix.crossproduct:
+                    continue
+                prefixed_and_suffixed = apply_affix(prefixed, suffix)
+                if prefixed_and_suffixed is not None:
+                    forms.add(prefixed_and_suffixed)
+
+        for suffix in suffixes:
+            if not suffix.crossproduct:
+                continue
+            available_flags = flags | suffix.flags
+            for prefix in (rule for rules in aff.PFX.values() for rule in rules):
+                if prefix.flag not in available_flags or not prefix.crossproduct:
+                    continue
+                suffixed = apply_affix(stem, suffix)
+                prefixed_and_suffixed = apply_affix(suffixed, prefix) if suffixed is not None else None
+                if prefixed_and_suffixed is not None:
+                    forms.add(prefixed_and_suffixed)
+
+    return forms
+
+
+def filter_characters(words: Iterable[str]) -> set[str]:
+    return {word for word in words if ASCII_WORD.fullmatch(word)}
+
+
+def filter_proper_names(words: Iterable[str]) -> set[str]:
+    return {word for word in words if word == word.lower()}
+
+
+def convert_ij(words: Iterable[str]) -> set[str]:
+    return {word.upper().replace("IJ", "Ĳ") for word in words}
+
+
+def filter_length(words: Iterable[str]) -> set[str]:
+    return {word for word in words if 2 <= len(word) <= 9}
+
+
+def normalize_source_word(word: str) -> str | None:
+    if not ASCII_WORD.fullmatch(word) or word != word.lower():
+        return None
+    normalized = convert_ij([word]).pop()
+    return normalized if 2 <= len(normalized) <= 9 else None
+
+
+def alphagram(word: str) -> str:
+    return "".join(sorted(word))
+
+
+def report_step(name: str, count: int) -> None:
+    print(f"{name}: {count:,} unieke woorden")
+
+
+def main() -> None:
+    source_lines = download(WORDLIST_URL).splitlines()
+    dictionary_text = download(HUNSPELL_URLS["nl.dic"])
+    affix_text = download(HUNSPELL_URLS["nl.aff"])
+    print(f"Download OpenTaal-woordenlijst: {len(source_lines):,} regels")
+    print(f"Download Hunspell nl.dic: {len(dictionary_text.splitlines()):,} regels")
+    print(f"Download Hunspell nl.aff: {len(affix_text.splitlines()):,} regels")
+
+    build_dir = ROOT / "build"
+    build_dir.mkdir(exist_ok=True)
+    dictionary_path = build_dir / "nl.dic"
+    affix_path = build_dir / "nl.aff"
+    dictionary_path.write_text(dictionary_text, encoding="utf-8")
+    affix_path.write_text(affix_text, encoding="utf-8")
+
+    dictionary = Dictionary.from_files(str(build_dir / "nl"))
+    hunspell_forms = generate_wordforms(dictionary)
+    candidates = set(source_lines) | hunspell_forms | REQUIRED_WORDS
+    report_step("Na downloaden en Hunspell-woordvormgeneratie", len(candidates))
+
+    character_filtered = filter_characters(candidates)
+    report_step("Na tekenfilter (letters; IJ-ligatuur toegestaan)", len(character_filtered))
+
+    names_filtered = filter_proper_names(character_filtered)
+    report_step("Na eigennamenfilter (alleen kleine letters)", len(names_filtered))
+
+    ij_converted = convert_ij(names_filtered)
+    report_step("Na IJ-conversie (IJ telt als een tegel)", len(ij_converted))
+
+    words = sorted(filter_length(ij_converted))
+    report_step("Na lengtefilter (2 t/m 9 tegels)", len(words))
+
+    groups: dict[str, list[str]] = defaultdict(list)
+    for word in words:
+        groups[alphagram(word)].append(word)
+
+    data_dir = ROOT / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "words.txt").write_text("\n".join(words) + "\n", encoding="utf-8")
+    (data_dir / "alphagrams.json").write_text(
+        json.dumps(groups, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    licenses_dir = ROOT / "licenses"
+    licenses_dir.mkdir(parents=True, exist_ok=True)
+    (licenses_dir / "OPENTAAL-LICENSE.txt").write_text(
+        download(WORDLIST_LICENSE_URL), encoding="utf-8"
+    )
+    (licenses_dir / "OPENTAAL-HUNSPELL-LICENSE.txt").write_text(
+        download(HUNSPELL_LICENSE_URL), encoding="utf-8"
+    )
+    print(f"Built {len(words):,} words and {len(groups):,} alphagrams from {SOURCE_URL}")
+    print(f"Hunspell wordforms source: {HUNSPELL_SOURCE_URL}")
+
+
+if __name__ == "__main__":
+    main()

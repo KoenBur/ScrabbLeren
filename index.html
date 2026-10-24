@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#123f32">
+    <meta name="description" content="Leer Nederlandse Scrabblewoorden met dagelijkse oefeningen en herhaling op maat.">
+    <title>ScrabbLeren — woordrek</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css?v=17">
+    <script src="./app.js?v=19" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#zoeken" aria-label="ScrabbLeren — opzoeken">
+        <span class="brand-tile">S</span><span>Scrabb<span class="brand-accent">Leren</span></span>
+      </a>
+      <div class="top-status"><span class="status-dot"></span><span id="list-status">Woordenlijst laden…</span></div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar" aria-label="Hoofdnavigatie">
+        <p class="nav-label">OEFENEN</p>
+        <nav class="main-navigation">
+          <a class="nav-link active" href="#zoeken" data-page="zoeken">Zoek</a>
+          <a class="nav-link" href="#kort" data-page="kort">Kort</a>
+          <a class="nav-link" href="#haken" data-page="haken">Haken</a>
+          <a class="nav-link" href="#alfagrammen" data-page="alfagrammen">Alfa</a>
+          <a class="nav-link" href="#voortgang" data-page="voortgang">Dag</a>
+          <a class="nav-link more-link" href="#duur" data-page="duur">Duur</a>
+        </nav>
+      </aside>
+
+      <section class="content" id="app-content">
+        <section class="page active" id="page-zoeken" aria-labelledby="page-title">
+          <h1 class="visually-hidden" id="page-title">Opzoeken</h1>
+          <div class="search-card">
+            <div class="mode-switch" role="group" aria-label="Zoekmodus">
+              <button type="button" class="mode-button active" data-mode="exact" aria-pressed="true">Woord</button>
+              <button type="button" class="mode-button" data-mode="pattern" aria-pressed="false">Patroon</button>
+              <button type="button" class="mode-button" data-mode="rack" aria-pressed="false">Rek</button>
+            </div>
+            <select id="lookup-mode" aria-label="Zoekmodus" class="visually-hidden">
+                <option value="exact">Exact woord</option>
+                <option value="pattern">Patroon</option>
+                <option value="rack">Rek / anagram</option>
+            </select>
+            <div class="search-rack">
+              <div id="lookup-preview" class="rack-display input-preview" aria-hidden="true"></div>
+              <div class="input-row">
+                <label class="visually-hidden" for="lookup-input">Letters invoeren</label>
+                <input id="lookup-input" type="text" placeholder="Typ letters…" autocomplete="off" spellcheck="false">
+                <button class="button primary" id="lookup-button">Zoek</button>
+              </div>
+            </div>
+            <div class="lookup-result" id="lookup-result" aria-live="polite"></div>
+            <div id="lookup-hooks" class="lookup-hooks hidden" aria-live="polite"></div>
+          </div>
+
+          <section class="daily-queue" aria-labelledby="daily-queue-title">
+            <div><h2 id="daily-queue-title">Vandaag</h2><span id="daily-due">Laden…</span></div>
+            <button class="button primary start-daily" id="daily-start">Start oefening</button>
+          </section>
+        </section>
+
+        <section class="page" id="page-kort" aria-labelledby="short-title">
+          <h1 id="short-title">Korte woorden</h1>
+          <div class="exercise-card">
+            <div class="exercise-meta"><span class="pill">SNELLE QUIZ</span><span id="short-score">0 goed</span></div>
+            <p class="question-label">Is dit een geldig woord?</p>
+            <div class="letter-display" id="short-word" aria-live="polite">—</div>
+            <div class="answer-buttons" id="short-answers">
+              <button class="button answer-button" data-valid="true">✓ Geldig</button>
+              <button class="button answer-button secondary" data-valid="false">✕ Ongeldig</button>
+            </div>
+            <div class="actions"><button class="button secondary hidden" id="short-next">Volgend woord <kbd>spatie</kbd></button></div>
+            <label class="inline-choice">Woordlengte
+              <select id="short-length"><option value="2">2 letters</option><option value="3">3 letters</option></select>
+            </label>
+            <div class="feedback" id="short-feedback" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-haken" aria-labelledby="hooks-title">
+          <h1 id="hooks-title">Vind de haken</h1>
+          <div class="exercise-card">
+            <div class="exercise-meta"><span class="pill">HAAK-OEFENING</span><span id="hook-score">0 goed</span></div>
+            <div class="letter-display" id="hook-word">—</div>
+            <div class="hook-inputs">
+              <label>Voor het woord<input id="hook-before" type="text" maxlength="28" placeholder="bijv. AB" autocomplete="off" spellcheck="false"></label>
+              <label>Achter het woord<input id="hook-after" type="text" maxlength="28" placeholder="bijv. ST" autocomplete="off" spellcheck="false"></label>
+            </div>
+            <div class="actions"><button class="button primary" id="hook-check">Controleren <kbd>Enter</kbd></button><button class="button secondary" id="hook-next">Volgend woord <kbd>spatie</kbd></button></div>
+            <div class="feedback" id="hook-feedback" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-alfagrammen" aria-labelledby="anagram-title">
+          <h1 id="anagram-title">Alfagrammen</h1>
+          <a class="text-link" href="#duur" data-page="duur">Dure letters →</a>
+          <div class="exercise-card">
+            <div class="exercise-meta"><span class="pill">ANAGRAMRONDE</span><span id="anagram-score">0 goed</span></div>
+            <div class="settings-row">
+              <label>Reklengte<select id="rack-length"><option value="7">7 tegels</option><option value="8">8 tegels</option></select></label>
+              <label>Waarschijnlijkste rekken<input id="rack-top" type="number" min="1" max="5000" value="500"></label>
+            </div>
+            <p class="question-label">Maak woorden met deze tegels</p>
+            <div class="rack-display" id="rack-display" aria-live="polite">—</div>
+            <label for="anagram-answer">Jouw woorden <span class="subtle">(scheid met spatie of komma)</span></label>
+            <input id="anagram-answer" type="text" placeholder="Typ alle woorden die je vindt" autocomplete="off" spellcheck="false">
+            <div class="actions"><button class="button primary" id="anagram-check">Controleren <kbd>Enter</kbd></button><button class="button secondary" id="anagram-next">Volgend rek <kbd>spatie</kbd></button></div>
+            <div class="feedback" id="anagram-feedback" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-duur" aria-labelledby="special-title">
+          <h1 id="special-title">Dure letters</h1>
+          <div class="exercise-card">
+            <div class="exercise-meta"><span class="pill">LETTERTRAINING</span><span id="special-score">0 goed</span></div>
+            <div class="settings-row">
+              <label>Letter<select id="special-letter"><option>Q</option><option>X</option><option>Y</option><option>Z</option><option>C</option><option>IJ</option></select></label>
+              <label>Oefenvorm<select id="special-kind"><option value="anagram">Alfagrammen</option><option value="hooks">Haken</option></select></label>
+            </div>
+            <div id="special-prompt" class="letter-display">—</div>
+            <div id="special-anagram">
+              <label for="special-answer">Woorden met deze tegels</label><input id="special-answer" type="text" autocomplete="off" spellcheck="false" placeholder="Scheid woorden met spaties of komma's">
+            </div>
+            <div id="special-hooks" class="hook-inputs hidden">
+              <label>Voor het woord<input id="special-before" type="text" autocomplete="off" spellcheck="false"></label>
+              <label>Achter het woord<input id="special-after" type="text" autocomplete="off" spellcheck="false"></label>
+            </div>
+            <div class="actions"><button class="button primary" id="special-check">Controleren <kbd>Enter</kbd></button><button class="button secondary" id="special-next">Volgende <kbd>spatie</kbd></button></div>
+            <div class="feedback" id="special-feedback" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-voortgang" aria-labelledby="progress-title">
+          <h1 id="progress-title">Dagelijkse oefening</h1>
+          <div class="stats-grid">
+            <div class="stat-card"><span>GELEERD</span><strong id="stat-learned">0</strong><small>kaarten geoefend</small></div>
+            <div class="stat-card"><span>NAUWKEURIGHEID</span><strong id="stat-accuracy">—</strong><small>over alle oefeningen</small></div>
+            <div class="stat-card"><span>DAGENREEKS</span><strong id="stat-streak">0</strong><small>dagen op rij geoefend</small></div>
+          </div>
+          <div class="exercise-accuracy" id="exercise-accuracy" aria-label="Nauwkeurigheid per oefening"></div>
+          <div class="exercise-card daily-card">
+            <div class="exercise-meta"><span class="pill">DAGELIJKSE RIJ</span><span id="daily-progress-count">Laden…</span></div>
+            <label>Nieuwe kaarten per dag<input id="daily-new-count" type="number" min="0" max="50" value="10"></label>
+            <div id="daily-practice" class="daily-practice hidden">
+              <p class="question-label" id="daily-prompt"></p>
+              <div id="daily-display" class="letter-display"></div>
+              <div id="daily-input-area"></div>
+              <div class="actions"><button class="button primary" id="daily-check">Controleren <kbd>Enter</kbd></button><button class="button secondary hidden" id="daily-next">Volgende kaart <kbd>spatie</kbd></button></div>
+              <div class="feedback" id="daily-feedback" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="exercise-card data-card">
+            <div><h2>Jouw woordenlijst</h2><p id="active-list-description">De OpenTaal-basislijst staat actief.</p></div>
+            <label class="button secondary upload-button" for="wordlist-file">Laad eigen .txt-lijst</label>
+            <input id="wordlist-file" class="visually-hidden" type="file" accept=".txt,text/plain">
+            <button class="text-button" id="reset-list" type="button">Gebruik OpenTaal</button>
+            <p class="hint">Je lijst blijft alleen op dit apparaat (IndexedDB). Hij wordt niet geüpload of opgenomen in de repository.</p>
+          </div>
+          <div class="exercise-card data-card">
+            <div><h2>Voortgang meenemen</h2><p>Exporteer of importeer je kaarten en statistieken als JSON.</p></div>
+            <div class="actions"><button class="button secondary" id="export-progress">Exporteer voortgang</button><label class="button secondary upload-button" for="progress-file">Importeer voortgang</label><input id="progress-file" class="visually-hidden" type="file" accept=".json,application/json"></div>
+          </div>
+          <div class="feedback" id="progress-feedback" aria-live="polite"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer>
+      <span>Woordlijsten: <a href="https://github.com/OpenTaal/opentaal-wordlist">OpenTaal</a> · <a href="https://github.com/OpenTaal/opentaal-hunspell">Hunspell</a> · <a href="./licenses/OPENTAAL-LICENSE.txt">licenties</a> (BSD / CC BY 3.0)</span>
+    </footer>
+  </body>
+</html>
